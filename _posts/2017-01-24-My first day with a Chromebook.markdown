@@ -2,7 +2,7 @@
 layout: post
 title:  "My first day with a Chromebook"
 date:   2017-01-24 16:48:00
-categories: random, hardware
+categories: random hardware
 ---
 
 I wanted to buy a tablet with the following characteristics:
