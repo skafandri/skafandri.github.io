@@ -4,15 +4,10 @@ title: About
 permalink: /about/
 ---
 
-This is the base Jekyll theme. You can find out more info about customizing your Jekyll theme, as well as basic Jekyll usage documentation at [jekyllrb.com](https://jekyllrb.com/)
+I am a software engineer from Tunisia. Currently I live in Bucharest, Romania.
 
-You can find the source code for Minima at GitHub:
-[jekyll][jekyll-organization] /
-[minima](https://github.com/jekyll/minima)
+I love clean code, challenging problems and automation.
+[LinkedIn](https://www.linkedin.com/in/ilyeskooli/){:target="_blank"} will be up to date about what I am doing now.
 
-You can find the source code for Jekyll at GitHub:
-[jekyll][jekyll-organization] /
-[jekyll](https://github.com/jekyll/jekyll)
-
-
-[jekyll-organization]: https://github.com/jekyll
+I am an open source enthusiast and casually give back to the community.
+You can find my open source work on [Github](https://github.com/skafandri){:target="_blank"}.
