@@ -5,11 +5,11 @@ date:   2018-01-19 00:00:00
 categories: symfony docker
 ---
 
-We are going to run the [Symfony demo application](https://github.com/symfony/demo) in a docker container. The main purpose of this guide is to show how you can do this step by step. Afterwards, you must be able to dockerize any PHP application, or actually any application.
+We are going to run the [Symfony demo application](https://github.com/symfony/demo) in a docker container. The main purpose of this guide is to show how you can do it step by step. Afterwards, you must be able to dockerize any PHP application, or actually any application.
 
 If you haven't done it, start by installing [Docker](https://www.docker.com/community-edition). Even if you are not familiar with Docker, this guide is a good starting point to see how it works.
 
-Start by pulling the PHP image, running a container, and executing `bash` inside the PHP container. We can do this using a single command.
+Start by pulling the PHP image, running a container, and executing `bash` inside the PHP container. You can do this with a single command.
 
 ````bash
 docker run -it php:fpm bash
@@ -33,7 +33,7 @@ Copyright (c) 1997-2017 The PHP Group
 Zend Engine v3.2.0, Copyright (c) 1998-2017 Zend Technologies
 ````
 
-Now we head to [https://github.com/symfony/demo](https://github.com/symfony/demo) to check the installation which is just a single command
+Now we head to [https://github.com/symfony/demo](https://github.com/symfony/demo) to check the installation documentation which is just a single command
 ````bash
 composer create-project symfony/symfony-demo
 ````
@@ -42,27 +42,17 @@ If you try to execute it in the container, you will get an error `bash: composer
 And this is exactly the main workflow to dockerize an application. Most of the time you are looking for `XXX not found` like error messages, and fix them. You will not install anything in the created PHP container because all changes you may make there will be lost when you restart the container. Instead you should create a *Dockerfile* so you can recreate (build) and run a container with all the changes already applied.
 `exit` the running container. Create a *symfony-demo* directory and create a Dockerfile inside it.
 
-Go to https://getcomposer.org/doc/faqs/how-to-install-composer-programmatically.md and copy the content of the script found there into *install-composer.sh*.
-
-Edit the Dockerfile content
 ````
 FROM php:fpm
 
-COPY install-composer.sh ./install-composer.sh
-RUN chmod +x ./install-composer.sh && ./install-composer.sh
-RUN mv ./composer.phar /usr/bin/composer
+RUN curl https://getcomposer.org/installer | php -- --filename=composer --install-dir=/bin
 ````
 
-Now try to build an image from the Dockerfile with the command `docker build .`  
-You should get an error
-````bash
-./install-composer.sh: 3: ./install-composer.sh: wget: not found
+Now try to build an image from the Dockerfile with the command  
 ````
-Remember, this is what we are looking for. Find errors and fix them. *wget* is missing from the base container. To add it, add to Dockerfile, After the `FROM` command
-````bash
-RUN apt-get update && apt-get install -y wget
+docker build . -t symfony-demo
 ````
-Now try to build the container again with the command `docker build . -t symfony-demo`. The build will succeed and finish with
+The build will succeed and finish with an output like
 ````bash
 Successfully built 62d49fa61f8d
 Successfully tagged symfony-demo:latest
@@ -71,11 +61,15 @@ You just created a new docker image with the name *symfony-demo* and tag *latest
 ````bash
 docker run -it --name symfony-demo symfony-demo bash
 ````
-You can confirm by running `composer`. If you try to create the project by running
+If you try to create the project by running
 ````bash
 composer create-project symfony/symfony-demo
 ````
-you will get another error `sh: 1: git: not found`. You guessed it, add **git** to the *apt* list after *wget*. Exist the container, build it and run it again.
+you will get another error `sh: 1: git: not found`. You guessed it, you need to instal **git**. Edit Dockerfile and add the command
+````
+RUN apt-get update && apt-get install -y git
+````
+Exit the container, build it and run it again.
 
 The installation should succeed now, you can confirm you have a working Symfony application
 ````bash
@@ -84,9 +78,9 @@ root@2446d0a1e0cb:/var/www/html/symfony-demo# ./bin/console
 Symfony 4.0.1 (kernel: src, env: dev, debug: true)
 ````
 
-If you exist the container now, the cloned project will be lost. To copy it to the host machine, open another terminal and run
+If you exit the container now, the cloned project will be lost. To copy it to the host machine, open another terminal and run
 ````bash
-docker cp sad_mclean:/var/www/html/symfony-demo/ .
+docker cp symfony-demo:/var/www/html/symfony-demo/ .
 ````
 
 Now you can exit the running container and run it again with mounting the project directory using `-v` and exposing port 8000 using -p
@@ -105,3 +99,26 @@ docker run -it -v ${PWD}/symfony-demo:/var/www/html -p 8000:8000 symfony-demo ba
 Run the built in web server `bin/console server:run 0.0.0.0:8000`
 
 Visit [http://localhost:8000](http://localhost:8000) you will see the Symfony demo application home page.
+
+A development environment is not complete without running the test suite. If you try to run the test suite `/vendor/bin/simple-phpunit` you will get an error
+
+````
+Fatal error: Uncaught Exception: simple-phpunit requires the "zip" PHP extension
+to be installed and enabled in order to uncompress the downloaded PHPUnit packages
+````
+
+To install the zip library add `zlib1g-dev` to the apt install list.  
+To install the zip PHP extension, add to Dockerfile the command
+````
+RUN docker-php-ext-install zip
+````
+Now the test suite should run successfully. The final Dockerfile looks like
+
+````
+FROM php:fpm
+
+RUN curl https://getcomposer.org/installer | php -- --filename=composer --install-dir=/bin
+RUN apt-get update && apt-get install -y git zlib1g-dev
+
+RUN docker-php-ext-install zip
+````
