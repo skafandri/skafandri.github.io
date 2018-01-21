@@ -4,6 +4,7 @@ title:  "Dockerize a Symfony dev environment"
 date:   2018-01-19 00:00:00
 categories: symfony docker
 ---
+![docker symfony]({{"/images/docker-symfony.jpg"}})
 
 We are going to run the [Symfony demo application](https://github.com/symfony/demo) in a docker container. The main purpose of this guide is to show how you can do it step by step. Afterwards, you must be able to dockerize any PHP application, or actually any application.
 
