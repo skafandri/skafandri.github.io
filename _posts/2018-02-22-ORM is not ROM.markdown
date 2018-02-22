@@ -362,6 +362,7 @@ As an example, consider this *orders* table
 
 |id|state|date|customer_id|...|delivery_date|delivery_address|delivery_status|
 |--|-----|----|-----------|---|-------------|----------------|---------------|
+|  |     |    |           |   |             |                |               |
 
 Hint: sometimes the related columns use the same name prefix. In this situation we can map the **delivery** columns as a composed class, as if it was a One-To-One relation. We can achieve this using Doctrine's [Embeddables](http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/tutorials/embeddables.html)
 
@@ -402,6 +403,7 @@ Consider the following *orders* table
 
 |id|state|date|...|canceled|cancel_date|cancel_reason|
 |--|-----|----|---|--------|-----------|-------------|
+|  |     |    |   |        |           |             |
 
 There are 3 columns holding cancellation data. We could embed a `Cancellation` class within an order, but that wouldn't make much sense. I can't imagine a method getting a `Cancellation` object as an argument. The second hint about this transformation is that only a subset of the data has those columns set. We can map such a table using [single table inheritance](http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/inheritance-mapping.html#single-table-inheritance)
 
