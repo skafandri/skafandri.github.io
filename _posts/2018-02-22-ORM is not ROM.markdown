@@ -3,6 +3,7 @@ layout: post
 title:  "ORM is not ROM"
 date:   2018-02-22 00:00:00
 categories: orm doctrine symfony design database
+comments: true
 ---
 
 ![orm]({{"/images/orm-hate.png"}})
