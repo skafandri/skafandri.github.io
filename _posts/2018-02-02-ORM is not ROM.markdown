@@ -5,16 +5,15 @@ date:   2018-01-01 00:00:00
 categories: orm doctrine symfony design database
 ---
 
-![docker symfony]({{"/images/orm-hate.png"}})
+![orm]({{"/images/orm-hate.png"}})
 > <span font-size="1em">Image credit: Martin Fowler https://martinfowler.com/bliki/OrmHate.html</span>
 
 
 ORM libraries provide mapping capabilities between relational data sitting in a RDBMS and objects interacting in memory. And like all developers tools, they are sometimes misused. When using an ORM we are supposed to map objects interactions to a relational model. Often we end up mapping a relational model using OOP syntax.
 
-I have compiled a short list of *anti-patterns* I encountered the most often in code bases. Certainly there are more out-here.  I propose a possible solution for the situation at hands.
+I tried to compile a short list of situations illustrating a miss-use or a non efficient use of ORM capabilities. Commonly referred to as *anti-patterns*. Certainly there are more out-here. I just list the ones I encountered the most often in code bases, and especially the *anti-patterns* that are common to most of the systems. For each situation, I propose a possible solution to make the code better.
 
-In the following example we will suppose the worst case scenario. That is we have to map an existing database which is currently used by other systems. In short, we can't change the database in any way.
-
+In the following example we will suppose the worst case scenario. We have to map an existing database which is currently used by other systems. In short, we can't change the database in any way.
 
 ### Map bad column names to bad properties and accessors names
 Naming things in software (besides being hard) can have a tremendous effect on code readability.
@@ -71,7 +70,7 @@ class Order
 }
 ````
 Now all the rest of the code will deal with two different data types: integer and null. This will manifest in the code as casts and ifs, like the following example:
-````
+````php
 function someCalculation(Order $order)
 {
     $this->total += (int)$order->getDeliveryFee();
@@ -110,7 +109,7 @@ class Order
 Now the *nullability* of this column is contained within the entity. As a nice side effect, now we could type-hint the entity methods arguments and return types.
 
 This transformation will result in a simpler calling code.
-````
+````php
 function someCalculation(Order $order)
 {
     $this->total += $order->getDeliveryFee();
@@ -124,7 +123,7 @@ function someController(Order $order, $deliveryFee)
 
 
 ### Map an Enum column to property with getters and setters
-Enum here doesn't necessarily mean an SQL `Enum` type. But any column that contain a fixed set of possible values. The following mapping will work with any scalar type of the **state** column (omitted constants definition for brevity).
+Enum here doesn't necessarily mean an SQL `Enum` type. But any column that contain a fixed set of possible values. The following mapping will work with any scalar type of the Order **state** column (omitted constants definition for brevity).
 
 ````php
 class Order
@@ -136,7 +135,9 @@ class Order
 
     public function setState($state)
     {
-        if(!in_array($state, [self::STATE_NEW, self::STATE_CONFIRMED, self::STATE_CANCELED])) {
+        if (!in_array($state,
+            [self::STATE_NEW, self::STATE_CONFIRMED, self::STATE_CANCELED])
+        ) {
             throw new \InvalidArgumentException("Invalid state");
         }
         $this->state = $state;
@@ -196,6 +197,7 @@ public function cancel()
     $this->state = self::STATE_CANCELED;
 }
 ````
+Such mapping will make code changes more contained and with less to no side effects. Which are major contributors to hidden bugs.
 
 ### Map multipurpose columns to multipurpose properties
 Sometimes when a system evolves in an unexpected way, it's database and code base may do the same. This can result in a column holding different types of informations and often related.
@@ -245,7 +247,7 @@ if (
     //dispatch to shop
 }
 ````
-One possible approach is to expose this column as two classes of accessors one for delivery type and one for payment type
+One possible approach is to expose this column as two sets of accessors, one for delivery type and one for payment type
 
 ````php
 class Order
@@ -290,12 +292,138 @@ class Order
     }
 }
 ````
-We can also change the database constants visibility to private and completely hide this mess from the rest of the world.
 
-### Map related columns to related properties
-- one to one
-  order(delivery_date, delivery_address, delivery_status)
-- inheritance
-  user()
-### Map nullable foreign key to nullable relation
-NullObject
+When the data and load grows, we will realize how badly this mixed column is impacting some queries performance. If we decide to make the *big* change and split it in separate columns, it would require changing one, maybe few source files. If this mixed concept is handled whenever needed in the code, it would be a significant undertaking, which often discourages refactoring the data model.
+
+### Map related columns to related properties (merging)
+To satisfy some particular queries performance, a users table had email addresses split into two columns: `username` and `domain`, something like
+
+|id|username|domain|
+|1|user1|gmail.com|
+|2|user2|yahoo.com|
+|3|user3|example.com|
+
+We can map both columns to be accessed using a single getter and setter
+
+````php
+class User
+{
+    /** @ORM\Column(type="string") */
+    private $username;
+
+    /** @ORM\Column(type="string") */
+    private $domain;
+
+    public function getEmail(): string
+    {
+        return $this->username . '@' . $this->domain;
+    }
+
+    public function setEmail(string $email)
+    {
+        $parts = explode('@', $email);
+        $this->username = $parts[0];
+        $this->domain = $parts[1];
+    }
+}
+````
+
+If we might need only username or domain data in some places, we can add specific accessors for them as well.
+
+Another example was designed when the used RDBMS imposed hard limits on text column size. The product table ended up with description1 and description2 columns, and concatenation was carried out as needed. However each contributor implemented his own concatenation.
+
+````php
+$description = $description1 . $description2;
+````
+
+````php
+$description = sprintf('%s%s', $description1, $description2);
+````
+
+````php
+$description = $description1;
+if (!empty($description2)) {
+    $description .= $description2;
+}
+````
+
+````php
+$description = $description1 . $description1;
+````
+
+The last one is my favorite, an example of a bug that shows up only with specific datasets. Corner cases are easily missed during testing.
+
+Some other common examples include dates and times split in separate columns (year, month, day) and other combinations.
+
+### Map related columns to related properties (composition)
+Sometimes there is a group of columns within a table which are related and often used together.  
+As an example, consider this *orders* table
+
+|id|state|date|customer_id|...|delivery_date|delivery_address|delivery_status|
+
+Hint: sometimes the related columns use the same name prefix. In this situation we can map the **delivery** columns as a composed class, as if it was a One-To-One relation. We can achieve this using Doctrine's [Embeddables](http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/tutorials/embeddables.html)
+
+````php
+/** @ORM\Entity */
+class Order
+{
+    /** @ORM\Id */
+    private $id;
+
+    /** @ORM\Column(type = "integer") */
+    private $state;
+
+    /** @ORM\Column(type = "datetime") */
+    private $date;
+
+    /** @ORM\Embedded(class = "Delivery") */
+    private $delivery;
+}
+
+/** @ORM\Embeddable */
+class Delivery
+{
+    /** @ORM\Column(type = "datetime") */
+    private $date;
+
+    /** @ORM\Column(type = "string") */
+    private $address;
+
+    /** @ORM\Column(type = "integer") */
+    private $status;
+}
+````
+
+### Map related columns to related properties (inheritance)
+In some cases it doesn't make sense to extract some related columns using composition.  
+Consider the following *orders* table
+
+|id|state|date|customer_id|...|canceled|cancel_date|cancel_reason|
+
+There are 3 columns holding cancellation data. We could embed a `Cancellation` class within an order, but that wouldn't make much sense. I can't imagine a method getting a `Cancellation` object as an argument. The second hint about this transformation is that only a subset of the data has those columns set. We can map such a table using [single table inheritance](http://docs.doctrine-project.org/projects/doctrine-orm/en/latest/reference/inheritance-mapping.html#single-table-inheritance)
+
+
+````php
+/**
+ * @ORM\Entity
+ * @ORM\InheritanceType("SINGLE_TABLE")
+ * @ORM\DiscriminatorColumn(name="cancelled", type="boolean")
+ * @ORM\DiscriminatorMap({"true" = "CancelledOrder", "false" = "Order"})
+ */
+class Order
+{
+
+}
+
+/**
+ * @ORM\Entity
+ */
+class CancelledOrder extends Order
+{
+    /** @ORM\Column(type = "datetime") */
+    private $cancelDate;
+
+    /** @ORM\Column(type = "string") */
+    private $cancelReason;
+}
+````
