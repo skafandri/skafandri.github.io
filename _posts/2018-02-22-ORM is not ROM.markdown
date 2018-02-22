@@ -21,7 +21,7 @@ By default, an ORM will map each database column to a property with the same or 
 
 One example was a table that had 2 columns **delivery** and **delivery1**. After checking the existing records, it was clear that those columns actually contained **delivery_type** and **delivery_fee** informations. There is a popular misconception of trying to *reflect* the database in the mapping.  
 The following mapping is perfectly valid.
-````
+````php
 /**
  * @ORM\Column(name="delivery", type="integer")
  */
@@ -34,13 +34,13 @@ private $deliveryFee;
 ````
 
 This small difference can have a big impact on the code readability. The following snippet could be hard to understand
-````
+````php
 if ($order->getDelivery() === 3) {
     $order->setDelivery1($order->getDelivery1()+10);
 }
 ````
 After renaming (and a small improvement), it could be easier to understand
-````
+````php
 if ($order->getDeliveryType() === Delivery::COURIER) {
     $order->setDeliveryFee($order->getDeliveryFee()+10);
 }
@@ -84,7 +84,7 @@ function someController(Order $order, $deliveryFee)
 }
 ````
 One solution is to map null values to a special value of the same data type, and perform the necessary casts and ifs within the mapped entity. The previous entity could be rewritten like this
-````
+````php
 class Order
 {
     /**
