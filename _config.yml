@@ -27,7 +27,8 @@ theme: minima
 plugins:
   - jekyll-feed
 google_analytics: UA-90197944-1
-disqus.shortname: ilyes
+disqus:
+  shortname: ilyes
 # Exclude from processing.
 # The following items will not be processed, by default. Create a custom list
 # to override the default setting.
